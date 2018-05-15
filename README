@@ -1,4 +1,4 @@
-PANDA - Pardus Alternative Driver Administration
+PANDA - Pisi Alternative Driver Administration
 
 This module automatically detects the brand of a graphic card
 After detecting, it simply returns a list which contains modules
