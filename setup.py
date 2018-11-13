@@ -7,7 +7,7 @@ setup(name="panda",
     version="0.2",
     description="Python Modules for panda",
     license="GNU GPL2",
-    url="http://www.pisilinux.org/",
+    url="https://www.pisilinux.org/",
     py_modules = ["panda"],
     data_files = [
         ("/usr/libexec", ["panda-helper"]),
