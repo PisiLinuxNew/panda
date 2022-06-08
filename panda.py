@@ -112,11 +112,11 @@ class Panda():
         if self.driver_name == "fglrx":
             self.os_driver = "radeon"
             return self.os_driver
-        elif self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"]:
+        elif self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"]:
             self.os_driver = "nouveau"
             return self.os_driver
         else:
-            return
+            return None
 
 
     def get_needed_driver_packages(self, kernel_flavors=None, installable=False):
