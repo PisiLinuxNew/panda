@@ -211,7 +211,7 @@ class Panda():
         if self.driver_name is None:
             self.__get_primary_driver()
 
-        if self.driver_name in "fglrx" or self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"]:
+        if self.driver_name in "fglrx" or self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"]:
             return ["vendor", "os", "generic"]
         elif "Not defined" == self.driver_name:
             return ["os", "generic"]
@@ -239,7 +239,7 @@ class Panda():
                     else:
                         return "os"
 
-        return "Cannot parse %s" % grub_file
+        return f"Cannot parse {grub_file}"
 
     #######################################
     # Grub2 parsing and writing functions #
@@ -248,11 +248,11 @@ class Panda():
         '''Edit grub default file to enable the use of propretiary graphic card drivers'''
         if arg == "vendor" and self.os_driver is None:
             print("I'm not able to install vendor drivers")
-            return
+            return None
         elif arg:
             pass
         else:
-            return "Wrong parameter!\" You can use: vendor or os"
+            return "Wrong parameter! You can use: vendor or os"
 
         configured = False
         grub_tmp = open(grub_default_file_new, "w")
