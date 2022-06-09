@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 # -*- coding: utf-8 -*-
 
 import os
@@ -27,45 +27,27 @@ class Panda():
         self.driver_name = None
         self.kernel_flavors = None
         self.os_driver = None
-        self.driver_packages = {"fglrx": ["module-fglrx",
-                                     "module-pae-fglrx",
-                                     "module-fglrx-userspace",
-                                     "xorg-video-fglrx"],
+        self.driver_packages = {
                            "nvidia-current": ["module-nvidia-current",
-                                              "module-pae-nvidia-current",
-                                              "module-nvidia-current-userspace",
                                               "xorg-video-nvidia-current",
+                                              "xorg-video-nvidia-current-32bit",
                                               "nvidia-xconfig",
                                               "nvidia-settings"] ,
-                           "nvidia96": ["module-nvidia96",
-                                        "module-pae-nvidia96",
-                                        "module-nvidia96-userspace",
-                                        "xorg-video-nvidia96",
-                                        "nvidia-xconfig",
-                                        "nvidia-settings"],
-                           "nvidia173": ["module-nvidia173",
-                                         "module-pae-nvidia173",
-                                         "module-nvidia173-userspace",
-                                         "xorg-video-nvidia173",
+                           "nvidia340": ["nvidia-340",
+                                         "xorg-video-nvidia340-32bit",
                                          "nvidia-xconfig",
-                                         "nvidia-settings"],
-                           "nvidia304": ["module-nvidia304",
-                                         "module-nvidia304-userspace",
-                                         "xorg-video-nvidia304",
+                                         "nvidia-settings"] ,
+                           "nvidia390": ["nvidia-390",
+                                         "xorg-video-nvidia390-32bit",
                                          "nvidia-xconfig",
-                                         "nvidia-settings"],
-                           "nvidia340": ["module-nvidia340",
-                                         "module-nvidia340-userspace",
-                                         "xorg-video-nvidia340",
-                                         "nvidia-xconfig",
-                                         "nvidia-settings"]}
+                                         "nvidia-settings"]}}
 
     def __get_primary_driver(self):
         '''Get driver name for the working primary device'''
 
         self.driver_name = "Not defined"
 
-        for boot_vga in glob.glob("%s/*/boot_vga" % sysdir):
+        for boot_vga in glob.glob(f"{sysdir}/*/boot_vga"):
             if open(boot_vga).read().startswith("1"):
                 dev_path = os.path.dirname(boot_vga)
                 vendor = open(os.path.join(dev_path, "vendor")).read().strip()
@@ -97,7 +79,7 @@ class Panda():
         if not kernel_list:
             if self.kernel_flavors is None:
                 self.__get_kernel_flavors()
-            kernel_list = self.kernel_flavors.keys()
+            kernel_list = list(self.kernel_flavors.keys())
 
         if self.driver_name is None:
             self.__get_primary_driver()
@@ -106,9 +88,9 @@ class Panda():
         for kernel_name in kernel_list:
             tmp, sep, suffix = kernel_name.partition("-")
             if suffix:
-                module_packages.append("module-%s-%s" % (suffix, self.driver_name))
+                module_packages.append(f"module-{suffix}-{self.driver_name}")
             else:
-                module_packages.append("module-%s" % self.driver_name)
+                module_packages.append(f"module-{self.driver_name}")
 
         return module_packages
 
@@ -130,11 +112,11 @@ class Panda():
         if self.driver_name == "fglrx":
             self.os_driver = "radeon"
             return self.os_driver
-        elif self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"]:
+        elif self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"]:
             self.os_driver = "nouveau"
             return self.os_driver
         else:
-            return
+            return None
 
 
     def get_needed_driver_packages(self, kernel_flavors=None, installable=False):
@@ -144,8 +126,7 @@ class Panda():
         if not self.driver_name == "Not defined":
             # List only kernel_flavors, we assume that a kernel flavor begins with
             # "module-" and does not end with "-userspace"
-            module_packages = filter(lambda x: x.startswith("module-") and not x.endswith("-userspace"), \
-                                    self.driver_packages[self.driver_name])
+            module_packages = [x for x in self.driver_packages[self.driver_name] if x.startswith("module-")]
 
             # Kernel_list contains currently used kernel modules
             # Kernel_flavors contains predefined kernel modules
@@ -167,7 +148,7 @@ class Panda():
 
     def get_all_driver_packages(self):
         '''Extract lists from the driver dict and return one unique single list'''
-        drivers = sum([x for x in self.driver_packages.values()], [])
+        drivers = sum([x for x in list(self.driver_packages.values())], [])
 
         return list(set(drivers))
 
@@ -179,26 +160,25 @@ class Panda():
         status, modified = self.update_grub_default_entries(arg)
         if status in ["os", "generic", "vendor"] and modified:
             self.update_grub_cfg()
-            self.set_libGL(self.driver_name if self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "fglrx", "nvidia340"] and status == "vendor" else "mesa")
-            if self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"] and status == "vendor":
+            self.set_libGL(self.driver_name if self.driver_name in ["nvidia-current", "nvidia304", "fglrx", "nvidia340", "nvidia390"] and status == "vendor" else "mesa")
+            if self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"] and status == "vendor":
                 open(nvidia_blacklist_file, "w").write("blacklist nouveau\n")
-            elif self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"] and os.path.isfile(nvidia_blacklist_file):
+            elif self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"] and os.path.isfile(nvidia_blacklist_file):
                 os.remove(nvidia_blacklist_file)
-                
 
         return status
 
     def set_libGL(self, arg):
         '''alternatives --set libGL /usr/lib/arg/libGL.so.1.2.0'''
         try:
-            retcode = call("alternatives --set libGL /usr/lib/%s/libGL.so.1.2.0" % arg, shell=True)
+            retcode = call(f"alternatives --set libGL /usr/lib/{arg}/libGL.so.1.2.0", shell=True)
         except OSError as e:
-            print >>sys.stderr, "alternatives --set libGL /usr/lib/%s/libGL.so.1.2.0 failed:" % arg, e
-        if not arg in ["mesa", "nvidia-current", "fglrx"]: return
+            print(f"alternatives --set libGL /usr/lib/{arg}/libGL.so.1.2.0 failed:", e, file=sys.stderr)
+        if not arg in ["mesa", "nvidia-current", "fglrx"]: return None
         try:
-            retcode = call("alternatives --set libGL-32bit /usr/lib32/%s/libGL.so.1.2.0" % arg, shell=True)
+            retcode = call(f"alternatives --set libGL-32bit /usr/lib32/{arg}/libGL.so.1.2.0", shell=True)
         except OSError as e:
-            print >>sys.stderr, "alternatives --set libGL-32bit /usr/lib32/%s/libGL.so.1.2.0 failed:" % arg, e
+            print(f"alternatives --set libGL-32bit /usr/lib32/{arg}/libGL.so.1.2.0 failed:", e, file=sys.stderr)
 
     ########################################
     # Functions essential for grub parsing #
@@ -208,19 +188,19 @@ class Panda():
         blacklist = []
 
         for param in params:
-            if param.startswith("%s=" % keyword):
+            if param.startswith(f"{keyword}="):
                 modules = param.split("=", 1)[1].split(",")
                 blacklist.extend(modules)
 
         return blacklist
 
     def update_parameter_in_line(self, line, parameter_name, parameter_value):
-        params = [x for x in line.strip().split() if not x.startswith("%s" % parameter_name)]
+        params = [x for x in line.strip().split() if not x.startswith(f"{parameter_name}")]
 
         if parameter_value is True:
             params.append(parameter_name)
         elif parameter_value:
-            params.append("%s=%s" % (parameter_name, ",".join(parameter_value)))
+            params.append(f"{parameter_name}={",".join(parameter_value)}")
 
         return " ".join(params) + "\n"
 
@@ -231,7 +211,7 @@ class Panda():
         if self.driver_name is None:
             self.__get_primary_driver()
 
-        if self.driver_name in "fglrx" or self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"]:
+        if self.driver_name in "fglrx" or self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"]:
             return ["vendor", "os", "generic"]
         elif "Not defined" == self.driver_name:
             return ["os", "generic"]
@@ -259,7 +239,7 @@ class Panda():
                     else:
                         return "os"
 
-        return "Cannot parse %s" % grub_file
+        return f"Cannot parse {grub_file}"
 
     #######################################
     # Grub2 parsing and writing functions #
@@ -267,12 +247,12 @@ class Panda():
     def update_grub_default_entries(self, arg):
         '''Edit grub default file to enable the use of propretiary graphic card drivers'''
         if arg == "vendor" and self.os_driver is None:
-            print "I'm not able to install vendor drivers"
-            return
+            print("I'm not able to install vendor drivers")
+            return None
         elif arg:
             pass
         else:
-            return "Wrong parameter!\" You can use: vendor or os"
+            return "Wrong parameter! You can use: vendor or os"
 
         configured = False
         grub_tmp = open(grub_default_file_new, "w")
@@ -341,7 +321,7 @@ class Panda():
         try:
             retcode = call("grub2-mkconfig -o %s" % grub_new, shell=True)
         except OSError as e:
-            print >>sys.stderr, "Creating %s failed:" % grub_new, e
+            print("Creating %s failed:" % grub_new, e, file=sys.stderr)
         else:
             shutil.copy2(grub_new, grub_file)
 
@@ -359,7 +339,7 @@ class Panda():
         kernel_version = self.kernel_flavors["kernel"] # This one should change
 
         if arg == "vendor" and self.os_driver is None:
-            print "I'm not able to install vendor drivers"
+            print("I'm not able to install vendor drivers")
             return
         elif arg:
             pass
@@ -429,9 +409,9 @@ if __name__ == '__main__':
     p = Panda()
     
     # Test cases
-    print p.get_grub_state()
-    print p.get_all_driver_packages()
-    print p.get_blacklisted_module()
+    print(p.get_grub_state())
+    print(p.get_all_driver_packages())
+    print(p.get_blacklisted_module())
 #    print p.update_grub_entries("vendor")
-    print p.update_system_files("vendor")
-    print p.get_needed_driver_packages(installable=False)
+    print(p.update_system_files("vendor"))
+    print(p.get_needed_driver_packages(installable=False))
