@@ -88,9 +88,9 @@ class Panda():
         for kernel_name in kernel_list:
             tmp, sep, suffix = kernel_name.partition("-")
             if suffix:
-                module_packages.append("module-%s-%s" % (suffix, self.driver_name))
+                module_packages.append(f"module-{suffix}-{self.driver_name}")
             else:
-                module_packages.append("module-%s" % self.driver_name)
+                module_packages.append(f"module-{self.driver_name}")
 
         return module_packages
 
@@ -126,7 +126,7 @@ class Panda():
         if not self.driver_name == "Not defined":
             # List only kernel_flavors, we assume that a kernel flavor begins with
             # "module-" and does not end with "-userspace"
-            module_packages = [x for x in self.driver_packages[self.driver_name] if x.startswith("module-") and not x.endswith("-userspace")]
+            module_packages = [x for x in self.driver_packages[self.driver_name] if x.startswith("module-")]
 
             # Kernel_list contains currently used kernel modules
             # Kernel_flavors contains predefined kernel modules
@@ -160,26 +160,25 @@ class Panda():
         status, modified = self.update_grub_default_entries(arg)
         if status in ["os", "generic", "vendor"] and modified:
             self.update_grub_cfg()
-            self.set_libGL(self.driver_name if self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "fglrx", "nvidia340"] and status == "vendor" else "mesa")
-            if self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"] and status == "vendor":
+            self.set_libGL(self.driver_name if self.driver_name in ["nvidia-current", "nvidia304", "fglrx", "nvidia340", "nvidia390"] and status == "vendor" else "mesa")
+            if self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"] and status == "vendor":
                 open(nvidia_blacklist_file, "w").write("blacklist nouveau\n")
-            elif self.driver_name in ["nvidia-current", "nvidia96", "nvidia173", "nvidia304", "nvidia340"] and os.path.isfile(nvidia_blacklist_file):
+            elif self.driver_name in ["nvidia-current", "nvidia304", "nvidia340", "nvidia390"] and os.path.isfile(nvidia_blacklist_file):
                 os.remove(nvidia_blacklist_file)
-                
 
         return status
 
     def set_libGL(self, arg):
         '''alternatives --set libGL /usr/lib/arg/libGL.so.1.2.0'''
         try:
-            retcode = call("alternatives --set libGL /usr/lib/%s/libGL.so.1.2.0" % arg, shell=True)
+            retcode = call(f"alternatives --set libGL /usr/lib/{arg}/libGL.so.1.2.0", shell=True)
         except OSError as e:
-            print("alternatives --set libGL /usr/lib/%s/libGL.so.1.2.0 failed:" % arg, e, file=sys.stderr)
-        if not arg in ["mesa", "nvidia-current", "fglrx"]: return
+            print(f"alternatives --set libGL /usr/lib/{arg}/libGL.so.1.2.0 failed:", e, file=sys.stderr)
+        if not arg in ["mesa", "nvidia-current", "fglrx"]: return None
         try:
-            retcode = call("alternatives --set libGL-32bit /usr/lib32/%s/libGL.so.1.2.0" % arg, shell=True)
+            retcode = call(f"alternatives --set libGL-32bit /usr/lib32/{arg}/libGL.so.1.2.0", shell=True)
         except OSError as e:
-            print("alternatives --set libGL-32bit /usr/lib32/%s/libGL.so.1.2.0 failed:" % arg, e, file=sys.stderr)
+            print(f"alternatives --set libGL-32bit /usr/lib32/{arg}/libGL.so.1.2.0 failed:", e, file=sys.stderr)
 
     ########################################
     # Functions essential for grub parsing #
@@ -189,19 +188,19 @@ class Panda():
         blacklist = []
 
         for param in params:
-            if param.startswith("%s=" % keyword):
+            if param.startswith(f"{keyword}="):
                 modules = param.split("=", 1)[1].split(",")
                 blacklist.extend(modules)
 
         return blacklist
 
     def update_parameter_in_line(self, line, parameter_name, parameter_value):
-        params = [x for x in line.strip().split() if not x.startswith("%s" % parameter_name)]
+        params = [x for x in line.strip().split() if not x.startswith(f"{parameter_name}")]
 
         if parameter_value is True:
             params.append(parameter_name)
         elif parameter_value:
-            params.append("%s=%s" % (parameter_name, ",".join(parameter_value)))
+            params.append(f"{parameter_name}={",".join(parameter_value)}")
 
         return " ".join(params) + "\n"
 
